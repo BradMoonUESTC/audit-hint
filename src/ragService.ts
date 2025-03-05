@@ -222,7 +222,7 @@ ${code}`;
      * @param topK 返回结果数量
      * @returns 漏洞结果列表
      */
-    private async queryPinecone(embedding: number[], topK: number = 10): Promise<any[]> {
+    private async queryPinecone(embedding: number[], topK: number = 6): Promise<any[]> {
         try {
             // 使用配置中的 Pinecone 信息
             const pineconeApiKey = this.config.pineconeApiKey;
@@ -322,7 +322,7 @@ ${code}`;
             }
             
             // 3. 使用嵌入向量查询Pinecone获取相似漏洞
-            const vulnerabilities = await this.queryPinecone(embedding, topK);
+            const vulnerabilities = await this.queryPinecone(embedding, 6);
             
             if (vulnerabilities.length === 0) {
                 console.log('未找到相关漏洞');
@@ -518,7 +518,7 @@ ${vulnDescriptions}
             this.config.pineconeHost = testCaseHost;
             
             console.log('开始查询相似测试用例...');
-            const similarCases = await this.queryPinecone(embedding, 5);
+            const similarCases = await this.queryPinecone(embedding, 6);
             console.log('找到相似测试用例数量:', similarCases.length);
             
             // 恢复原始host
