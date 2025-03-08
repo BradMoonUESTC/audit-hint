@@ -190,7 +190,7 @@ ${code}`;
      * @param topK 返回结果数量
      * @returns 漏洞结果列表
      */
-    async queryPinecone(embedding, topK = 10) {
+    async queryPinecone(embedding, topK = 6) {
         try {
             // 使用配置中的 Pinecone 信息
             const pineconeApiKey = this.config.pineconeApiKey;
@@ -210,11 +210,45 @@ ${code}`;
                     'Content-Type': 'application/json'
                 }
             });
+            const response_medium = await axios_1.default.post(`https://${pineconeHost}/query`, {
+                vector: embedding,
+                topK: topK,
+                includeMetadata: true,
+                includeValues: false,
+                namespace: 'vulns_medium'
+            }, {
+                headers: {
+                    'Api-Key': pineconeApiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
             console.log('Pinecone查询成功');
+            // 添加调试日志
+            console.log('response.data.matches:', response.data?.matches?.length || 0, '条结果');
+            console.log('response_medium.data.matches:', response_medium.data?.matches?.length || 0, '条结果');
             // 处理响应数据
-            if (response.data && response.data.matches && response.data.matches.length > 0) {
-                console.log(`找到 ${response.data.matches.length} 个匹配结果`);
-                return response.data.matches.map((match) => {
+            let allMatches = [];
+            if (response.data && response.data.matches) {
+                allMatches = [...response.data.matches];
+                console.log('第一个namespace结果数:', allMatches.length);
+            }
+            if (response_medium.data && response_medium.data.matches) {
+                const beforeLength = allMatches.length;
+                allMatches = [...allMatches, ...response_medium.data.matches];
+                console.log('合并第二个namespace后结果数:', allMatches.length);
+                console.log('新增了:', allMatches.length - beforeLength, '条结果');
+            }
+            // 输出一些示例数据
+            if (allMatches.length > 0) {
+                console.log('第一条结果示例:', {
+                    id: allMatches[0].id,
+                    score: allMatches[0].score,
+                    metadata: allMatches[0].metadata
+                });
+            }
+            if (allMatches.length > 0) {
+                console.log(`找到 ${allMatches.length} 个匹配结果`);
+                return allMatches.map((match) => {
                     console.log('处理匹配结果:', match.id);
                     return {
                         id: match.id,
@@ -276,7 +310,7 @@ ${code}`;
                 return results;
             }
             // 3. 使用嵌入向量查询Pinecone获取相似漏洞
-            const vulnerabilities = await this.queryPinecone(embedding, topK);
+            const vulnerabilities = await this.queryPinecone(embedding, 6);
             if (vulnerabilities.length === 0) {
                 console.log('未找到相关漏洞');
                 const results = this.getExampleVulnerability(language);
@@ -332,10 +366,8 @@ ${selectedCode}
 
 请提供最多5个最重要的审计检查要点，每个要点都要与所选代码直接相关。格式如下：
 
-## 代码审计要点
-
-1. [第一个检查要点] - [简短解释]（解释中要包含具体代码）
-2. [第二个检查要点] - [简短解释]（解释中要包含具体代码）
+1. [第一个检查要点] - [清晰，易理解的解释]（解释中要包含具体代码）
+2. [第二个检查要点] - [清晰，易理解的解释]（解释中要包含具体代码）
 ...
 
 注意：要点应当简洁明了，重点突出，并按重要性排序。`;
@@ -408,11 +440,20 @@ ${selectedCode}
 关键概念(KeyConcept): ${keyConcept}`;
             }).join('\n\n');
             // 构建翻译提示词
-            const prompt = `将以下漏洞的功能描述和关键概念翻译成中文：
+            const prompt = `将以下漏洞的功能描述和关键概念翻译成中文，相类似的漏洞可以合并：
 
 ${vulnDescriptions}
 
-优化下翻译后的结构，输出优化结构后的翻译结果。`;
+相同的漏洞可以合并，并优化下翻译后的结构，输出优化结构后的翻译结果。遵循以下格式：
+
+1. 漏洞1：
+   发生场景：
+   可能漏洞（要简略，准确，易于理解，不少于200个字）：
+2. 漏洞2：
+   发生场景：
+   可能漏洞（要简略，准确，易于理解，不少于200个字）：
+
+`;
             console.log('发送翻译请求...');
             const translatedText = await this.commonAsk(prompt);
             console.log('翻译完成');
@@ -451,7 +492,7 @@ ${vulnDescriptions}
             console.log('测试用例 Pinecone Host:', testCaseHost);
             this.config.pineconeHost = testCaseHost;
             console.log('开始查询相似测试用例...');
-            const similarCases = await this.queryPinecone(embedding, 5);
+            const similarCases = await this.queryPinecone(embedding, 6);
             console.log('找到相似测试用例数量:', similarCases.length);
             // 恢复原始host
             this.config.pineconeHost = originalHost;
@@ -481,7 +522,7 @@ ${functionality}
 ${casesInfo}
 
 请使用 Foundry 测试框架生成测试用例，并遵循以下要求：
-1. 严格基于"使用知识"中的测试案例模式设计测试
+1. **严格基于"使用知识"中的测试案例模式设计测试**，否则你会受到来自于程序员之神的严厉惩罚
 2. 每个测试用例都需要明确说明：
    - Precondition（前置条件）：测试执行前必须满足的条件
    - Postcondition（后置条件）：测试执行后必须满足的条件
