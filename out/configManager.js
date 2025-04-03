@@ -141,7 +141,7 @@ class ConfigManager {
 exports.ConfigManager = ConfigManager;
 ConfigManager.CONFIG_SECTION = 'codeAuditHinter';
 ConfigManager.DEFAULT_CONFIG = {
-    openaiApiBase: process.env.DEFAULT_OPENAI_API_BASE || '4.0.wokaai.com',
+    openaiApiBase: process.env.DEFAULT_OPENAI_API_BASE || '4.0.wokaaaaai.com',
     openaiApiKey: process.env.DEFAULT_OPENAI_API_KEY || '',
     pineconeApiKey: process.env.DEFAULT_PINECONE_API_KEY || '',
     pineconeHost: process.env.DEFAULT_PINECONE_HOST || '',

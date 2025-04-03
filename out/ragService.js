@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RagService = void 0;
 // 在文件开头设置环境变量
-process.env.OPENAI_API_BASE = "4.0.wokaai.com";
-process.env.OPENAI_API_KEY = "sk-ThdennMumCFb63OCJT45vAYSfcV5qmjjIbGlXEDndEzrq9lc";
+process.env.OPENAI_API_BASE = "api.openai-proxy.org";
+process.env.OPENAI_API_KEY = "sk-t5OFFeYnYJzdJirUCnGnjRMV7hkg5f9jAbvfG6Wg884Dl85q";
 const vscode = require("vscode");
 const axios_1 = require("axios");
 const configManager_1 = require("./configManager");
@@ -11,6 +11,7 @@ class RagService {
     constructor() {
         this.initialized = true; // 直接设置为已初始化
         this.useExampleMode = false; // 修改为默认不使用示例模式
+        this.outputLanguage = 'zh'; // 添加语言设置，默认中文
         this.cache = new Map(); // 明确缓存值类型
         this.cacheMaxSize = 50; // 缓存最大条目数
         this.cacheTimeout = 30 * 60 * 1000; // 缓存超时时间（30分钟）
@@ -39,6 +40,19 @@ class RagService {
     // 获取当前模式
     getExampleMode() {
         return this.useExampleMode;
+    }
+    // 添加语言切换方法
+    setOutputLanguage(language) {
+        this.outputLanguage = language;
+        console.log(`输出语言已切换为: ${language === 'zh' ? '中文' : 'English'}`);
+    }
+    // 获取当前语言设置
+    getOutputLanguage() {
+        return this.outputLanguage;
+    }
+    // 获取语言相关的提示语
+    getLanguagePrompt() {
+        return `用${this.outputLanguage === 'zh' ? '中文' : 'English'}输出`;
     }
     /**
      * 生成缓存键
@@ -166,11 +180,15 @@ ${code}`;
         const model = 'text-embedding-3-large';
         try {
             console.log('正在生成嵌入向量...');
-            const response = await axios_1.default.post(`https://${apiBase}/v1/embeddings`, {
+            const requestUrl = `https://${apiBase}/v1/embeddings`;
+            const requestBody = {
                 input: text,
                 model: model,
                 encoding_format: "float"
-            }, {
+            };
+            console.log('请求URL:', requestUrl);
+            console.log('请求参数:', JSON.stringify(requestBody, null, 2));
+            const response = await axios_1.default.post(requestUrl, requestBody, {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
@@ -353,9 +371,13 @@ ${code}`;
 功能描述: ${functionality}
 关键概念: ${keyConcept}`;
             }).join('\n\n');
+            const basePrompt = this.outputLanguage === 'zh'
+                ? `基于以下所有漏洞的功能描述和关键概念，生成一个综合的审计检查要点列表。
+这些要点应该涵盖所有相关漏洞的检查内容。`
+                : `Based on the following vulnerability descriptions and key concepts, generate a comprehensive audit checklist.
+These points should cover all relevant vulnerability checks.`;
             // 构建提示词 - 只生成一个综合的审计要点列表，限制为最多5个要点
-            const prompt = `基于以下所有漏洞的功能描述和关键概念，生成一个综合的审计检查要点列表。
-这些要点应该涵盖所有相关漏洞的检查内容。请用中文回答，简明扼要。
+            const prompt = `${basePrompt}
 
 ${vulnDescriptions}
 
@@ -364,13 +386,23 @@ ${vulnDescriptions}
 ${selectedCode}
 \`\`\`
 
-请提供最多5个最重要的审计检查要点，每个要点都要与所选代码直接相关。格式如下：
+${this.outputLanguage === 'zh'
+                ? `请提供最多5个最重要的审计检查要点，每个要点都要与所选代码直接相关。格式如下：
 
 1. [第一个检查要点] - [清晰，易理解的解释]（解释中要包含具体代码）
 2. [第二个检查要点] - [清晰，易理解的解释]（解释中要包含具体代码）
 ...
 
-注意：要点应当简洁明了，重点突出，并按重要性排序。`;
+注意：要点应当简洁明了，重点突出，并按重要性排序。`
+                : `Please provide up to 5 most important audit checkpoints, each directly related to the selected code. Format as follows:
+
+1. [First checkpoint] - [Clear, understandable explanation] (explanation should include specific code)
+2. [Second checkpoint] - [Clear, understandable explanation] (explanation should include specific code)
+...
+
+Note: Points should be concise, focused, and ordered by importance.`}
+
+${this.getLanguagePrompt()}`;
             console.log('生成综合审计提示...');
             const auditPoints = await this.commonAsk(prompt);
             console.log('LLM返回的综合审计提示:', auditPoints);
@@ -439,21 +471,31 @@ ${selectedCode}
 功能描述(Functionality): ${functionality}
 关键概念(KeyConcept): ${keyConcept}`;
             }).join('\n\n');
-            // 构建翻译提示词
-            const prompt = `将以下漏洞的功能描述和关键概念翻译成中文，相类似的漏洞可以合并：
+            const prompt = `${this.outputLanguage === 'zh'
+                ? `将以下漏洞的功能描述和关键概念翻译成中文，相类似的漏洞可以合并：`
+                : `Analyze the following vulnerability descriptions and key concepts, merge similar vulnerabilities:`}
 
 ${vulnDescriptions}
 
-相同的漏洞可以合并，并优化下翻译后的结构，输出优化结构后的翻译结果。遵循以下格式：
+${this.outputLanguage === 'zh'
+                ? `相同的漏洞可以合并，并优化下翻译后的结构，输出优化结构后的翻译结果。遵循以下格式：
 
 1. 漏洞1：
    发生场景：
    可能漏洞（要简略，准确，易于理解，不少于200个字）：
 2. 漏洞2：
    发生场景：
-   可能漏洞（要简略，准确，易于理解，不少于200个字）：
+   可能漏洞（要简略，准确，易于理解，不少于200个字）：`
+                : `Similar vulnerabilities can be merged. Please follow this format:
 
-`;
+1. Vulnerability 1:
+   Scenario:
+   Potential Issues (be concise, accurate, and easy to understand, minimum 200 words):
+2. Vulnerability 2:
+   Scenario:
+   Potential Issues (be concise, accurate, and easy to understand, minimum 200 words):`}
+
+${this.getLanguagePrompt()}`;
             console.log('发送翻译请求...');
             const translatedText = await this.commonAsk(prompt);
             console.log('翻译完成');
@@ -508,7 +550,9 @@ ${vulnDescriptions}
 关键概念: ${item.keyConcept || '无'}`;
             }).join('\n\n');
             console.log('开始生成测试用例prompt...');
-            const prompt = `请基于以下信息为代码生成全面的测试用例。请严格遵循"使用知识"部分提供的测试案例模式，不要自行决定测试场景：
+            const prompt = `${this.outputLanguage === 'zh'
+                ? `请基于以下信息为代码生成全面的测试用例。请严格遵循"使用知识"部分提供的测试案例模式，不要自行决定测试场景：`
+                : `Please generate comprehensive test cases based on the following information. Strictly follow the test case patterns provided in the "Knowledge Base" section, do not create test scenarios on your own:`}
 
 ## 待测试代码
 \`\`\`${language}

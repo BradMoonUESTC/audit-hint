@@ -2,7 +2,7 @@
   "name": "vscode-rag-vulnerability-hinter",
   "displayName": "Code Audit Hinter",
   "description": "hinter for your audit and development",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "publisher": "BradMoonUESTC",
   "repository": {
     "type": "git",
@@ -78,12 +78,12 @@
       "properties": {
         "codeAuditHinter.openaiApiBase": {
           "type": "string",
-          "default": "4.0.wokaai.com",
+          "default": "api.openai-proxy.org",
           "description": "OpenAI API 基础URL"
         },
         "codeAuditHinter.openaiApiKey": {
           "type": "string",
-          "default": "",
+          "default": "sk-t5OFFeYnYJzdJirUCnGnjRMV7hkg5f9jAbvfG6Wg884Dl85q",
           "description": "OpenAI API 密钥"
         },
         "codeAuditHinter.pineconeApiKey": {
