@@ -1,6 +1,4 @@
-// 在文件开头设置环境变量
-process.env.OPENAI_API_BASE = "api.openai-proxy.org";
-process.env.OPENAI_API_KEY = "sk-t5OFFeYnYJzdJirUCnGnjRMV7hkg5f9jAbvfG6Wg884Dl85q";
+
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
